@@ -124,6 +124,44 @@ cases.forEach(([name, , expected], i) => {
 const rtlBlock = blocks[cases.findIndex(([, , d]) => d === 'rtl')]
 check('forced blocks isolate their bidi context', rtlBlock.applied['unicode-bidi'], 'isolate')
 
+// --- A table is one directional unit ----------------------------------------
+//
+// Regression guard for a real misrender: when cells were judged individually,
+// a six-row status table got three different verdicts — Hebrew label cells
+// went RTL while the `HEAD` and `Commits` cells beside them stayed LTR — so
+// the label column changed edges from row to row. The table must decide once.
+
+const tableRows = [
+  ['ריפו', 'github.com/kfirsch/dsh-hebrew-rtl (פרטי)'],
+  ['HEAD', 'dd27fe00d2cc7e0f9b68c0b3beb36d20c6a41884'],
+  ['Commits', '18'],
+  ['בדיקות', '20/20'],
+  ['plugin_check', '0 שגיאות, 17/20'],
+  ['חיווט מקומי', 'link: — עובד, אומת בבוט אמיתי'],
+]
+
+// Judged alone, these cells disagree; the selector must not reach them.
+const cellVerdicts = tableRows.flat().map((text) => {
+  const cell = block(text)
+  blocks.length = 0
+  blocks.push(cell)
+  mod.factory(() => {}).apply({ effect: () => {} })
+  return cell.applied.direction
+})
+check(
+  'cells judged alone would disagree (why table-level is needed)',
+  new Set(cellVerdicts).size > 1,
+  true,
+)
+
+// The whole table, judged as one block, gets a single verdict.
+const table = block(`המצב הנוכחי ${tableRows.flat().join(' ')}`)
+blocks.length = 0
+blocks.push(table)
+mod.factory(() => {}).apply({ effect: () => {} })
+check('a Hebrew status table resolves to one RTL verdict', table.applied.direction, 'rtl')
+check('the table isolates its bidi context', table.applied['unicode-bidi'], 'isolate')
+
 // --- Cmd+Left / Cmd+Right swap ----------------------------------------------
 
 function field(value, caret) {
