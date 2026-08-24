@@ -1,7 +1,7 @@
 {
   "name": "dsh-hebrew-rtl",
   "version": "0.1.0",
-  "description": "Correct Hebrew RTL rendering for the DeepSeek Harness web GUI.",
+  "description": "Correct Hebrew RTL rendering for the DeepSeek Harness web GUI: per-block direction by dominant script, bidi-safe input fields, and RTL-aware Cmd+Left/Right line navigation.",
   "type": "module",
   "license": "MIT",
   "author": {
@@ -12,12 +12,32 @@
     "type": "git",
     "url": "git+https://github.com/kfirsch/dsh-hebrew-rtl.git"
   },
+  "homepage": "https://github.com/kfirsch/dsh-hebrew-rtl#readme",
+  "bugs": {
+    "url": "https://github.com/kfirsch/dsh-hebrew-rtl/issues"
+  },
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "hebrew",
+    "rtl",
+    "bidi",
+    "i18n"
+  ],
   "main": "lib/index.js",
   "exports": {
     ".": "./lib/index.js",
     "./package.json": "./package.json",
     "./client": "./lib/client.js"
   },
+  "files": [
+    "lib",
+    "cordis.patch.yml",
+    "README.md",
+    "README.he.md",
+    "LICENSE"
+  ],
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"
