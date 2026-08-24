@@ -88,3 +88,20 @@ A pull request adding another script is welcome **from someone who reads it** an
 ## License
 
 [MIT](./LICENSE) © Kfir Schneider
+
+## For reviewers: why there is no build step
+
+`lib/` is not build output — it is the hand-written source, in the exact wire
+format the DSH client module system loads. There is deliberately no `src/`, no
+`scripts.build` and no `scripts.prepack`, so a clean checkout is already the
+artifact and a GitHub install needs no `allowBuilds` approval.
+
+`plugin_check` flags all three of those as warnings on the assumption that a
+plugin is compiled; they are inapplicable here rather than unaddressed. The
+package passes with **no errors**.
+
+Run the checks yourself:
+
+```sh
+npm test          # smoke-tests the direction rule and the caret swap
+```
