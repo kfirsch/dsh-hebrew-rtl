@@ -26,10 +26,17 @@
     "i18n"
   ],
   "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
   "exports": {
-    ".": "./lib/index.js",
-    "./package.json": "./package.json",
-    "./client": "./lib/client.js"
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./client": {
+      "types": "./lib/types/client.d.ts",
+      "default": "./lib/client.js"
+    },
+    "./package.json": "./package.json"
   },
   "files": [
     "lib",
@@ -38,6 +45,12 @@
     "README.he.md",
     "LICENSE"
   ],
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.0 || >=4.0.1-rc.1 <5.0.0-0"
+  },
+  "scripts": {
+    "test": "node scripts/smoke-test.mjs"
+  },
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"
