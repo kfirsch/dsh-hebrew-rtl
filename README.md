@@ -18,13 +18,13 @@ The obvious CSS answer — `unicode-bidi: plaintext` — fixes only the easy hal
 
 ### Per-block direction by dominant script
 
-For each block element (`p`, `li`, `h1`–`h6`, `blockquote`, `td`, `th`) it counts Hebrew letters against Latin letters in that block's own text:
+For each block element (`p`, `li`, `h1`–`h6`, `blockquote`, `td`, `th`) it drops code-like tokens from the block's text, then counts Hebrew-majority **words** against Latin-majority words in what remains:
 
 | Content | Result |
 | --- | --- |
-| No Hebrew | No override — `unicode-bidi: plaintext` stays in charge |
-| Hebrew > Latin | `direction: rtl` + `text-align: right` |
-| Latin > Hebrew | `direction: ltr` + `text-align: left` |
+| No Hebrew prose | No override — `unicode-bidi: plaintext` stays in charge |
+| Hebrew words > Latin words | `direction: rtl` + `text-align: right` |
+| Latin words > Hebrew words | `direction: ltr` + `text-align: left` |
 | Equal (both present) | No override — falls back to first-strong |
 
 Forced blocks get `unicode-bidi: isolate`, so the Unicode Bidi algorithm still lays out the minority-script runs correctly **inside** the chosen paragraph direction:
@@ -38,6 +38,10 @@ This is a test sentence with שלום in the middle.
 ```
 
 Dominance is the rule because both simpler alternatives fail in an obvious way. First-strong alone mis-renders any Hebrew paragraph that does not *begin* in Hebrew. "Any Hebrew character forces RTL" over-corrects in the other direction: an English sentence carrying one Hebrew word flips to RTL and its English runs come out reversed.
+
+**Why words, and why code tokens are excluded.** Counting raw letters breaks on technical Hebrew prose. A single identifier can outweigh a whole paragraph — `git+https://git@github.com:kfirsch/...#<sha>` contributes 44 Latin letters by itself, and a commit sha another 40 — so a Hebrew sentence that merely *cites* a URL was rendered LTR. Identifiers, URLs, paths, shas and `15/15`-style ratios are therefore stripped before counting; they are still laid out normally, they just no longer vote on the paragraph's direction. Counting whole words rather than letters follows from the same reasoning: a three-letter Hebrew word says as much about the sentence's language as `credential` does. The stripping is deliberately conservative — an ordinary Latin word standing alone is never treated as code, so genuine English prose still counts in full.
+
+The heuristic is not infallible on a block that is genuinely half-and-half after stripping (a short line of mostly commit hashes with two Hebrew words, say). Those fall back to first-strong rather than guessing.
 
 Blocks are re-evaluated through a `MutationObserver` as text streams in, coalesced with `requestAnimationFrame` so streaming does not trigger a scan per character.
 

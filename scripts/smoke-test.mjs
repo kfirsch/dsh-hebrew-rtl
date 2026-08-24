@@ -90,6 +90,28 @@ const cases = [
   ['Opens in Hebrew but Latin dominates', 'שלום everyone, the meeting starts at 10:00 tomorrow.', 'ltr'],
   ['Latin with a Hebrew word mid-sentence', 'Please check that the כותרת appears correctly.', 'ltr'],
   ['No Hebrew at all', 'No Hebrew characters at all in this line.', undefined],
+
+  // Technical Hebrew prose — the case that broke the letter-counting rule.
+  // Counted raw, the single URL token contributes 44 Latin letters on its own
+  // and flips an otherwise Hebrew paragraph to LTR.
+  [
+    'Hebrew prose citing URLs and identifiers',
+    'בדקתי: משיכת ה-tarball האנונימית מ-codeload מחזירה 404. ההתקנה הצליחה רק כי pnpm נפל חזרה ל-git+https, ולמכונה הזאת יש credential helper מאומת (gh מחובר כ-kfirsch). ה-lockfile מקליט git+https://git@github.com:kfirsch/...#<sha> — לא כתובת tarball.',
+    'rtl',
+  ],
+  ['Hebrew table row naming a package', '| שם החבילה | dsh-hebrew-rtl |', 'rtl'],
+  ['Hebrew sentence quoting a command', 'הרצתי npm test על הריפו וקיבלתי 15/15 — הכול עובר.', 'rtl'],
+
+  // The mirror image: dropping code tokens must not drag real English prose
+  // to RTL merely because it names two Hebrew fields.
+  [
+    'English prose naming Hebrew fields',
+    'The build failed because the כותרת field and the תיאור field were both empty on submit.',
+    'ltr',
+  ],
+  // Every Hebrew character sits inside a stripped token, so no Hebrew prose
+  // remains to speak for the block: leave it to the plaintext heuristic.
+  ['English prose with paths and commands', 'The plugin lives in ~/workDir/dsh-plugins and exports apply.', undefined],
 ]
 
 blocks.push(...cases.map(([, text]) => block(text)))
