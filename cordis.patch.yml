@@ -1,0 +1,10 @@
+# dsh-hebrew-rtl bundle patch.
+#
+# Declared through `dsh.bundle.patch` in package.json, which is what makes the
+# package installable with `dsh plugin add`. The row it inserts mounts the
+# package's host half; the client half is discovered separately from the
+# `dsh.client` declaration and served to the browser by the client module
+# registry, so it needs no row of its own.
+- insert:
+    - id: hebrew-rtl
+      name: dsh-hebrew-rtl
