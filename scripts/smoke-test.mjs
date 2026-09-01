@@ -162,6 +162,59 @@ mod.factory(() => {}).apply({ effect: () => {} })
 check('a Hebrew status table resolves to one RTL verdict', table.applied.direction, 'rtl')
 check('the table isolates its bidi context', table.applied['unicode-bidi'], 'isolate')
 
+// --- A list is one directional unit too -------------------------------------
+//
+// Same failure one level down, and it shipped because the table fix was not
+// generalised. In a Hebrew numbered list, a short all-Latin item ("push") has
+// no Hebrew to weigh, so it got no verdict, fell back to the page's LTR, and
+// jumped to the opposite margin from its RTL siblings — breaking the numbering
+// column. The list must decide once, exactly like the table.
+
+const listItems = ['commit — שני התיקונים', 'בדיקות לשניהם (אין כרגע; זו הסיבה שהבאגים עברו)', 'push']
+
+const itemVerdicts = listItems.map((text) => {
+  const item = block(text)
+  blocks.length = 0
+  blocks.push(item)
+  mod.factory(() => {}).apply({ effect: () => {} })
+  return item.applied.direction
+})
+check(
+  'items judged alone would disagree (why list-level is needed)',
+  new Set(itemVerdicts).size > 1,
+  true,
+)
+
+const list = block(listItems.join(' '))
+blocks.length = 0
+blocks.push(list)
+mod.factory(() => {}).apply({ effect: () => {} })
+check('a Hebrew list resolves to one RTL verdict', list.applied.direction, 'rtl')
+
+// --- Composite parts are never selected directly ----------------------------
+//
+// The three shipped bugs (table cells, list items, KaTeX spans) were all the
+// same mistake: a selector reaching a PART of a composite element. Assert the
+// selectors themselves, since a verdict test cannot catch a bad selector.
+
+const source = readFileSync(join(root, 'lib/client.js'), 'utf8')
+const blockSelector = /var BLOCK_SELECTOR = '([^']+)'/.exec(source)?.[1] ?? ''
+check('block selector targets whole lists, not items', /\bul\b/.test(blockSelector) && !/\bli\b/.test(blockSelector), true)
+check('block selector targets whole tables, not cells', /\btable\b/.test(blockSelector) && !/\btd\b/.test(blockSelector), true)
+check('plaintext CSS excludes KaTeX subtrees', source.includes(':not(.katex):not(.katex *)'), true)
+
+// --- A tie resolves to RTL --------------------------------------------------
+//
+// "Waste (שולי)" — one Latin word, one Hebrew word — used to fall back to
+// first-strong and render LTR above an RTL paragraph, leaving the heading
+// misaligned with its own body text.
+
+const tie = block('Waste (שולי)')
+blocks.length = 0
+blocks.push(tie)
+mod.factory(() => {}).apply({ effect: () => {} })
+check('an even Hebrew/Latin split resolves to RTL', tie.applied.direction, 'rtl')
+
 // --- Cmd+Left / Cmd+Right swap ----------------------------------------------
 
 function field(value, caret) {

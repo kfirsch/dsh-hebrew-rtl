@@ -18,14 +18,14 @@ The obvious CSS answer — `unicode-bidi: plaintext` — fixes only the easy hal
 
 ### Per-block direction by dominant script
 
-For each block element (`p`, `li`, `h1`–`h6`, `blockquote`, `table`) it drops code-like tokens from the block's text, then counts Hebrew-majority **words** against Latin-majority words in what remains:
+For each block element (`p`, `ul`/`ol`, `h1`–`h6`, `blockquote`, `table`) it drops code-like tokens from the block's text, then counts Hebrew-majority **words** against Latin-majority words in what remains:
 
 | Content | Result |
 | --- | --- |
 | No Hebrew prose | No override — `unicode-bidi: plaintext` stays in charge |
 | Hebrew words > Latin words | `direction: rtl` + `text-align: right` |
 | Latin words > Hebrew words | `direction: ltr` + `text-align: left` |
-| Equal (both present) | No override — falls back to first-strong |
+| Equal (both present) | `direction: rtl` — a block with as much Hebrew as Latin is Hebrew text quoting English |
 
 Forced blocks get `unicode-bidi: isolate`, so the Unicode Bidi algorithm still lays out the minority-script runs correctly **inside** the chosen paragraph direction:
 
@@ -43,7 +43,13 @@ Dominance is the rule because both simpler alternatives fail in an obvious way. 
 
 The heuristic is not infallible on a block that is genuinely half-and-half after stripping (a short line of mostly commit hashes with two Hebrew words, say). Those fall back to first-strong rather than guessing.
 
-**A table is one unit, not a grid of independent cells.** Judging each `td` separately gave a six-row status table three different verdicts — Hebrew label cells went RTL while the `HEAD` and `Commits` cells beside them stayed LTR — so the label column changed edges from row to row and the eye had no single alignment to follow. Column *order* is also a property of the table rather than the cell, so per-cell directions end up fighting the column order itself. The direction is therefore decided once, from the table's whole text, and every cell inherits it; `unicode-bidi: isolate` still lays out each cell's own content correctly within that direction.
+**Composite elements are judged whole, never by their parts.** This one rule was learned three times over:
+
+- **Tables.** Judging each `td` separately gave a six-row status table three different verdicts — Hebrew label cells went RTL while the `HEAD` and `Commits` cells beside them stayed LTR — so the label column changed edges from row to row. Column *order* is a property of the table rather than the cell, so per-cell directions also fight the column order itself.
+- **Lists.** The same failure one level down. In a Hebrew numbered list, a short all-Latin item such as `push` has no Hebrew to weigh, so it got no verdict at all, fell back to the page's LTR, and jumped to the opposite margin from its RTL siblings — breaking the numbering column.
+- **Formulas.** KaTeX renders a formula as hundreds of nested `<span>`s whose horizontal positions it computes itself. Letting each one pick its own direction tore formulas apart: `(idle + rightsizing)` and `$870/month` came out reordered into nonsense. `.katex` and its whole subtree are excluded — KaTeX handles bidi itself.
+
+So the direction is decided once per composite, from its whole text, and every part inherits it. `unicode-bidi: isolate` still lays out each part's own content correctly within that direction.
 
 Blocks are re-evaluated through a `MutationObserver` as text streams in, coalesced with `requestAnimationFrame` so streaming does not trigger a scan per character.
 
