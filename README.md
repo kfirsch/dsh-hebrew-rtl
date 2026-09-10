@@ -43,6 +43,17 @@ Dominance is the rule because both simpler alternatives fail in an obvious way. 
 
 The heuristic is not infallible on a block that is genuinely half-and-half after stripping (a short line of mostly commit hashes with two Hebrew words, say). Those fall back to first-strong rather than guessing.
 
+**The message decides; its blocks inherit.** A block on its own is not always enough context. In a Hebrew answer a heading is one line — often a bare identifier such as `agent-sandbox (SIG Apps, kubernetes-sigs)` with no Hebrew in it at all — so judging it alone left it LTR beside its own RTL body, and a document came out alternating sides heading by heading.
+
+So each message resolves one direction and its blocks follow it, with two exceptions that keep their own:
+
+- **A whole paragraph with no Hebrew at all** stays LTR. It is prose in its own right, and forcing RTL on it pushes the run to the far margin and migrates its trailing punctuation to the wrong end. A heading is one line labelling the body beneath it, not a paragraph, so it inherits even when entirely Latin.
+- **Code** (`pre`, `code`, and KaTeX) is excluded outright.
+
+What the message vote reads is everything *except* those two — the part that speaks the message's own language. Counting them would let an exception decide the rule it is exempt from: a short Hebrew answer quoting one large English paragraph scored 8 Hebrew words against 62 Latin and flipped the whole message to LTR.
+
+A simpler rule was considered and rejected: "three or more Hebrew words anywhere means the answer is in Hebrew." It is right about Hebrew answers and wrong about English ones — *The כותרת field, the תיאור field and the שם field all reject valid input* scores 3 Hebrew words against 17 Latin, and a threshold would flip that English sentence to RTL. That is the "any Hebrew forces RTL" bug with a number attached; dominance stays symmetric in both directions.
+
 **Composite elements are judged whole, never by their parts.** This one rule was learned three times over:
 
 - **Tables.** Judging each `td` separately gave a six-row status table three different verdicts — Hebrew label cells went RTL while the `HEAD` and `Commits` cells beside them stayed LTR — so the label column changed edges from row to row. Column *order* is a property of the table rather than the cell, so per-cell directions also fight the column order itself.

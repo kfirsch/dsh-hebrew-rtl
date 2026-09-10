@@ -33,13 +33,26 @@ globalThis.window = {
   __ModuleLoader__: { load: (m) => (globalThis.__loaded = m) },
   getComputedStyle: () => ({ direction: 'ltr' }),
 }
+// Message roots the scan should find. Empty means "no messages on the page",
+// which is how the per-block tests below keep judging blocks individually.
+const messages = []
+
+// The stub answers by selector rather than returning one fixed list, because
+// the scan now asks two different questions ("which message roots?" and
+// "which blocks?") and a stub that ignores the selector silently feeds blocks
+// where message roots are expected.
+function isMessageSelector(selector) {
+  return typeof selector === 'string' && selector.includes('markdown')
+}
+
 globalThis.document = {
   createElement: makeStyleEl,
   head: { appendChild() {} },
   body: {
     nodeType: 1,
     matches: () => false,
-    querySelectorAll: () => blocks,
+    closest: () => null,
+    querySelectorAll: (selector) => (isMessageSelector(selector) ? messages : blocks),
   },
   addEventListener: (type, fn) => {
     if (type === 'keydown') keyHandler = fn
@@ -61,9 +74,10 @@ check('client exports apply', Object.keys(mod.factory(() => {})), ['apply'])
 // --- Direction rule ---------------------------------------------------------
 
 /** A block element stub that records the inline styles applied to it. */
-function block(text) {
+function block(text, tagName = 'P') {
   const applied = {}
   return {
+    tagName,
     textContent: text,
     matches: () => false,
     closest: () => null,
@@ -80,6 +94,28 @@ function block(text) {
     },
     applied,
   }
+}
+
+/** A message root stub holding the blocks the scan should find inside it. */
+function message(children) {
+  return {
+    nodeType: 1,
+    tagName: 'DIV',
+    matches: () => false,
+    closest: () => null,
+    querySelectorAll: () => children,
+    children,
+  }
+}
+
+/** Run one message through the scan and return its blocks. */
+function scanOneMessage(children) {
+  messages.length = 0
+  messages.push(message(children))
+  blocks.length = 0
+  mod.factory(() => {}).apply({ effect: () => {} })
+  messages.length = 0
+  return children
 }
 
 const cases = [
@@ -202,6 +238,73 @@ const blockSelector = /var BLOCK_SELECTOR = '([^']+)'/.exec(source)?.[1] ?? ''
 check('block selector targets whole lists, not items', /\bul\b/.test(blockSelector) && !/\bli\b/.test(blockSelector), true)
 check('block selector targets whole tables, not cells', /\btable\b/.test(blockSelector) && !/\btd\b/.test(blockSelector), true)
 check('plaintext CSS excludes KaTeX subtrees', source.includes(':not(.katex):not(.katex *)'), true)
+
+// --- The message decides; its blocks inherit --------------------------------
+//
+// A block alone is not always enough context. In a Hebrew answer a heading is
+// one line, often entirely Latin, so per-block judging left it LTR beside its
+// own RTL body and the document alternated sides heading by heading.
+
+{
+  // The reported case: a Hebrew answer about two Kubernetes projects, whose
+  // headings are bare project names with no Hebrew in them at all.
+  const intro = block('שני פרויקטים שונים לגמרי בשכבה, גם אם שניהם k8s + AI agents:', 'P')
+  const headingNoHebrew = block('agent-sandbox (SIG Apps, kubernetes-sigs)', 'H3')
+  const body = block('שכבת תשתית/ריצה — CRD בשם Sandbox שמנהל pod יחיד, stateful, עם זהות יציבה.', 'P')
+  const headingSomeHebrew = block('kagent (Solo.io, כיום CNCF Sandbox project)', 'H3')
+  scanOneMessage([intro, headingNoHebrew, body, headingSomeHebrew])
+
+  check('a Hebrew message resolves its own paragraphs to RTL', body.applied.direction, 'rtl')
+  check('an all-Latin heading inherits the message direction', headingNoHebrew.applied.direction, 'rtl')
+  check('a mostly-Latin heading inherits it too', headingSomeHebrew.applied.direction, 'rtl')
+  check(
+    'sibling headings agree with each other',
+    headingNoHebrew.applied.direction === headingSomeHebrew.applied.direction,
+    true,
+  )
+}
+
+{
+  // A whole paragraph with no Hebrew keeps LTR: it is prose in its own right,
+  // and forcing RTL pushes the run to the far margin and migrates its trailing
+  // punctuation to the wrong end.
+  const heb = block('הנה ההסבר מהתיעוד:', 'P')
+  const englishPara = block(
+    'The decision engine spawned more pods than the scheduler could bin-pack efficiently, so the volume claims grew past the provisioned baseline.',
+    'P',
+  )
+  scanOneMessage([heb, englishPara])
+  check('an all-Latin paragraph opts out and stays LTR', englishPara.applied.direction, undefined)
+  check('the Hebrew paragraph beside it is still RTL', heb.applied.direction, 'rtl')
+}
+
+{
+  // The exception must not decide the rule it is exempt from. Counting that
+  // big English paragraph scored hebrew=8 latin=62 and flipped the whole
+  // message to LTR — so the message vote skips exactly the blocks that opt out.
+  const a = block('הנה ההסבר:', 'P')
+  const b = block('זה מה שחשוב לדעת.', 'P')
+  const bigEnglish = block(
+    'The decision engine spawned significantly more pods than the scheduler could bin-pack efficiently, which caused the persistent volume claims to grow well beyond the provisioned baseline. Because each sandbox retains a stable identity across hibernate and resume cycles, the storage footprint accumulates rather than being reclaimed between runs.',
+    'P',
+  )
+  const heading = block('agent-sandbox', 'H3')
+  scanOneMessage([a, b, bigEnglish, heading])
+  check('a large English paragraph cannot flip the message', heading.applied.direction, 'rtl')
+}
+
+{
+  // Dominance stays symmetric: an English answer quoting Hebrew field names
+  // must stay LTR. A "3+ Hebrew words means Hebrew" threshold would score 3
+  // against 17 here and flip it — the "any Hebrew forces RTL" bug with a
+  // number attached.
+  const p1 = block('The form has three broken fields.', 'P')
+  const p2 = block('The כותרת field, the תיאור field and the שם field all reject valid input.', 'P')
+  const heading = block('Broken fields', 'H3')
+  scanOneMessage([p1, p2, heading])
+  check('an English message quoting Hebrew names stays LTR', p2.applied.direction, 'ltr')
+  check('its heading is not dragged to RTL', heading.applied.direction, 'ltr')
+}
 
 // --- A tie resolves to RTL --------------------------------------------------
 //
