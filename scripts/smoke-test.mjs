@@ -60,6 +60,8 @@ globalThis.document = {
     querySelectorAll: (selector) =>
       isBrowserOnlySelector(selector) ? [] : isMessageSelector(selector) ? messages : blocks,
   },
+  // No composer on the stub page; the browser test covers it.
+  querySelectorAll: () => [],
   addEventListener: (type, fn) => {
     if (type === 'keydown') keyHandler = fn
   },
@@ -333,6 +335,7 @@ check('an even Hebrew/Latin split resolves to RTL', tie.applied.direction, 'rtl'
 function field(value, caret) {
   return {
     tagName: 'TEXTAREA',
+    matches: () => false,
     value,
     selectionStart: caret,
     selectionEnd: caret,
@@ -353,6 +356,7 @@ const hebrew = 'שלום עולם זהו משפט בעברית'
 check('Cmd+Left on an RTL line goes to the visual left (line end)', press(field(hebrew, 5), 'ArrowLeft'), [hebrew.length, hebrew.length, undefined])
 check('Cmd+Right on an RTL line goes to the visual right (line start)', press(field(hebrew, 5), 'ArrowRight'), [0, 0, undefined])
 check('an LTR line is left untouched', press(field('hello world plain english', 5), 'ArrowLeft'), undefined)
+check('a line opening with Latin but holding Hebrew is RTL too', press(field('Rollout: מוסיפים שורה', 3), 'ArrowRight'), [0, 0, undefined])
 check('Shift extends and keeps a backward selection', press(field(hebrew, 5), 'ArrowRight', true), [0, 5, 'backward'])
 
 // --- Host half --------------------------------------------------------------

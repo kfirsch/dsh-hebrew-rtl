@@ -49,9 +49,10 @@
     "@deepseek-ai/cordis": "^4.0.0 || >=4.0.1-rc.1 <5.0.0-0"
   },
   "scripts": {
-    "test": "node scripts/smoke-test.mjs && node scripts/browser-test.mjs",
+    "test": "node scripts/smoke-test.mjs && node scripts/browser-test.mjs && node scripts/fields-browser-test.mjs",
     "test:unit": "node scripts/smoke-test.mjs",
-    "test:browser": "node scripts/browser-test.mjs"
+    "test:browser": "node scripts/browser-test.mjs",
+    "test:fields": "node scripts/fields-browser-test.mjs"
   },
   "dsh": {
     "bundle": {
