@@ -2,7 +2,7 @@
 
 English | [עברית](./README.he.md)
 
-Correct Hebrew RTL rendering for the [DeepSeek Harness](https://github.com/deepseek-harness/harness) web GUI: per-block direction by dominant script, bidi-safe input fields, and RTL-aware `Cmd`+`←`/`→` line navigation.
+Correct Hebrew RTL rendering for the [DeepSeek Harness](https://github.com/deepseek-harness/harness) web GUI: any line with Hebrew reads right-to-left, bidi-safe input fields, and RTL-aware `Cmd`+`←`/`→` line navigation.
 
 ## The problem
 
@@ -16,43 +16,34 @@ The obvious CSS answer — `unicode-bidi: plaintext` — fixes only the easy hal
 
 ## What this plugin does
 
-### Per-block direction by dominant script
+### Any line with Hebrew in it is RTL
 
-For each block element (`p`, `ul`/`ol`, `h1`–`h6`, `blockquote`, `table`) it drops code-like tokens from the block's text, then counts Hebrew-majority **words** against Latin-majority words in what remains:
+The rule is deliberately blunt: a block (`p`, `ul`/`ol`, `h1`–`h6`, `blockquote`, `table`) or a line of text that contains **even one Hebrew letter** is forced to `direction: rtl` + `text-align: right`. A block with no Hebrew is left to `unicode-bidi: plaintext`.
 
-| Content | Result |
-| --- | --- |
-| No Hebrew prose | No override — `unicode-bidi: plaintext` stays in charge |
-| Hebrew words > Latin words | `direction: rtl` + `text-align: right` |
-| Latin words > Hebrew words | `direction: ltr` + `text-align: left` |
-| Equal (both present) | `direction: rtl` — a block with as much Hebrew as Latin is Hebrew text quoting English |
-
-Forced blocks get `unicode-bidi: isolate`, so the Unicode Bidi algorithm still lays out the minority-script runs correctly **inside** the chosen paragraph direction:
+Forced blocks get `unicode-bidi: isolate`, so the Unicode Bidi algorithm still lays out the Latin runs correctly **inside** the RTL line:
 
 ```
-היום בדקנו את הפלאגין החדש עם DSH והכול עבד מצוין.
-→ RTL, and "DSH" stays in place, unreversed
+Rollout: מוסיפים minPodsPerReplicaSet: 2
+→ RTL: "Rollout:" reads first, on the right; the identifiers stay unreversed
 
-This is a test sentence with שלום in the middle.
-→ LTR, and "שלום" stays in place, mid-sentence
+DSH הוא כלי מצוין לעבודה יומיומית.
+→ RTL, and "DSH" stays in place
 ```
 
-Dominance is the rule because both simpler alternatives fail in an obvious way. First-strong alone mis-renders any Hebrew paragraph that does not *begin* in Hebrew. "Any Hebrew character forces RTL" over-corrects in the other direction: an English sentence carrying one Hebrew word flips to RTL and its English runs come out reversed.
+**Why not count which script dominates.** Earlier versions counted Hebrew words against Latin words and followed the majority. Mixed technical Hebrew is the normal case, not the edge case: `Rollout: מוסיפים minPodsPerReplicaSet: 2`, `canonical-revision=canary. minAvailable: 50% ... בוחר רק pods עם` — each has more Latin than Hebrew and came out LTR, line after line, in otherwise Hebrew answers. The accepted cost: an English sentence carrying a single Hebrew word is RTL too.
 
-**Why words, and why code tokens are excluded.** Counting raw letters breaks on technical Hebrew prose. A single identifier can outweigh a whole paragraph — `git+https://git@github.com:kfirsch/...#<sha>` contributes 44 Latin letters by itself, and a commit sha another 40 — so a Hebrew sentence that merely *cites* a URL was rendered LTR. Identifiers, URLs, paths, shas and `15/15`-style ratios are therefore stripped before counting; they are still laid out normally, they just no longer vote on the paragraph's direction. Counting whole words rather than letters follows from the same reasoning: a three-letter Hebrew word says as much about the sentence's language as `credential` does. The stripping is deliberately conservative — an ordinary Latin word standing alone is never treated as code, so genuine English prose still counts in full.
+**Lines outside paragraphs.** GenUI components (steps, lists, tables, callouts…), `ask_user_question` cards and your own message bubble render text in `<span>`/`<div>` elements, not `<p>`. With `unicode-bidi: plaintext` each of those picked its own direction from its first strong character, so a step titled `1. Rollout: מוסיפים ...` was LTR even inside an RTL list. The plugin now walks the text in the conversation, question cards and GenUI blocks, and forces RTL on the element that lays out each Hebrew line (and on any inline span between the text and that element). The sidebars and settings are not touched.
 
-The heuristic is not infallible on a block that is genuinely half-and-half after stripping (a short line of mostly commit hashes with two Hebrew words, say). Those fall back to first-strong rather than guessing.
+**Components are laid out as a whole.** Which side a question card's option numbers, a GenUI step's markers, or a table's columns sit on is a property of the whole component, so it follows the component's dominant script: a Hebrew question card or GenUI block is laid out RTL (markers and numbers on the right), while an English GenUI table with one Hebrew value keeps its English layout — the Hebrew value itself still reads RTL.
 
-**The message decides; its blocks inherit.** A block on its own is not always enough context. In a Hebrew answer a heading is one line — often a bare identifier such as `agent-sandbox (SIG Apps, kubernetes-sigs)` with no Hebrew in it at all — so judging it alone left it LTR beside its own RTL body, and a document came out alternating sides heading by heading.
+**Where dominance is still used: the message and the component.** Dominance no longer decides a line, but it still decides two things that are not a line: which direction a whole message takes (so its all-Latin headings follow it), and a component's layout direction (see above). For those, words are counted and code tokens are excluded. Counting raw letters breaks on technical Hebrew prose. A single identifier can outweigh a whole paragraph — `git+https://git@github.com:kfirsch/...#<sha>` contributes 44 Latin letters by itself, and a commit sha another 40 — so a Hebrew sentence that merely *cites* a URL was rendered LTR. Identifiers, URLs, paths, shas and `15/15`-style ratios are therefore stripped before counting; they are still laid out normally, they just no longer vote on the paragraph's direction. Counting whole words rather than letters follows from the same reasoning: a three-letter Hebrew word says as much about the sentence's language as `credential` does. The stripping is deliberately conservative — an ordinary Latin word standing alone is never treated as code, so genuine English prose still counts in full.
 
-So each message resolves one direction and its blocks follow it, with two exceptions that keep their own:
+**Headings follow their message.** A block on its own is not always enough context. In a Hebrew answer a heading is one line — often a bare identifier such as `agent-sandbox (SIG Apps, kubernetes-sigs)` with no Hebrew in it at all — so judging it alone left it LTR beside its own RTL body, and a document came out alternating sides heading by heading.
 
-- **A whole paragraph with no Hebrew at all** stays LTR. It is prose in its own right, and forcing RTL on it pushes the run to the far margin and migrates its trailing punctuation to the wrong end. A heading is one line labelling the body beneath it, not a paragraph, so it inherits even when entirely Latin.
-- **Code** (`pre`, `code`, and KaTeX) is excluded outright.
+So each message resolves one direction — Hebrew when more of its paragraphs, lists, tables and quotes carry Hebrew than do not — and a heading with no Hebrew follows it. Two things keep their own direction:
 
-What the message vote reads is everything *except* those two — the part that speaks the message's own language. Counting them would let an exception decide the rule it is exempt from: a short Hebrew answer quoting one large English paragraph scored 8 Hebrew words against 62 Latin and flipped the whole message to LTR.
-
-A simpler rule was considered and rejected: "three or more Hebrew words anywhere means the answer is in Hebrew." It is right about Hebrew answers and wrong about English ones — *The כותרת field, the תיאור field and the שם field all reject valid input* scores 3 Hebrew words against 17 Latin, and a threshold would flip that English sentence to RTL. That is the "any Hebrew forces RTL" bug with a number attached; dominance stays symmetric in both directions.
+- **A whole paragraph with no Hebrew at all** stays LTR. It is prose in its own right, and forcing RTL on it pushes the run to the far margin and migrates its trailing punctuation to the wrong end. A block inside a Hebrew list or table follows that list or table instead.
+- **Code** (`pre`, `code`, and KaTeX) is excluded outright — a code block stays LTR even when it contains Hebrew.
 
 **Composite elements are judged whole, never by their parts.** This one rule was learned three times over:
 
@@ -126,5 +117,9 @@ package passes with **no errors**.
 Run the checks yourself:
 
 ```sh
-npm test          # smoke-tests the direction rule and the caret swap
+npm test              # both suites below
+npm run test:unit     # direction verdicts and the caret swap, against DOM stubs
+npm run test:browser  # real layout in headless Chrome: GenUI steps, question
+                      # cards, the user bubble, markdown blocks (needs Chrome;
+                      # skipped if none is found)
 ```
