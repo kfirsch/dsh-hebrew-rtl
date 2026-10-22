@@ -1,7 +1,7 @@
 {
   "name": "dsh-hebrew-rtl",
   "version": "0.1.0",
-  "description": "Correct Hebrew RTL rendering for the DeepSeek Harness web GUI: per-block direction by dominant script, bidi-safe input fields, and RTL-aware Cmd+Left/Right line navigation.",
+  "description": "Correct Hebrew RTL rendering for the DeepSeek Harness web GUI: any line with Hebrew reads right-to-left, bidi-safe input fields, and RTL-aware Cmd+Left/Right line navigation.",
   "type": "module",
   "license": "MIT",
   "author": {
@@ -49,7 +49,9 @@
     "@deepseek-ai/cordis": "^4.0.0 || >=4.0.1-rc.1 <5.0.0-0"
   },
   "scripts": {
-    "test": "node scripts/smoke-test.mjs"
+    "test": "node scripts/smoke-test.mjs && node scripts/browser-test.mjs",
+    "test:unit": "node scripts/smoke-test.mjs",
+    "test:browser": "node scripts/browser-test.mjs"
   },
   "dsh": {
     "bundle": {

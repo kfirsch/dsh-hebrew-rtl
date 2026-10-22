@@ -44,6 +44,11 @@ const messages = []
 function isMessageSelector(selector) {
   return typeof selector === 'string' && selector.includes('markdown')
 }
+// Components and line scopes are exercised in a real browser
+// (scripts/browser-test.mjs); here they are simply absent from the page.
+function isBrowserOnlySelector(selector) {
+  return typeof selector === 'string' && (selector.includes('data-genui') || selector.includes('data-question-key'))
+}
 
 globalThis.document = {
   createElement: makeStyleEl,
@@ -52,7 +57,8 @@ globalThis.document = {
     nodeType: 1,
     matches: () => false,
     closest: () => null,
-    querySelectorAll: (selector) => (isMessageSelector(selector) ? messages : blocks),
+    querySelectorAll: (selector) =>
+      isBrowserOnlySelector(selector) ? [] : isMessageSelector(selector) ? messages : blocks,
   },
   addEventListener: (type, fn) => {
     if (type === 'keydown') keyHandler = fn
@@ -122,9 +128,9 @@ const cases = [
   ['Hebrew dominant', 'היום בדקנו את הפלאגין החדש עם DSH והכול עבד מצוין.', 'rtl'],
   ['Hebrew opening with a Latin name', 'DSH הוא כלי מצוין לעבודה יומיומית.', 'rtl'],
   ['Pure Hebrew', 'זהו משפט בעברית בלבד ללא אנגלית.', 'rtl'],
-  ['Latin dominant with one Hebrew word', 'This is a test sentence with שלום in the middle.', 'ltr'],
-  ['Opens in Hebrew but Latin dominates', 'שלום everyone, the meeting starts at 10:00 tomorrow.', 'ltr'],
-  ['Latin with a Hebrew word mid-sentence', 'Please check that the כותרת appears correctly.', 'ltr'],
+  ['Latin dominant with one Hebrew word', 'This is a test sentence with שלום in the middle.', 'rtl'],
+  ['Opens in Hebrew but Latin dominates', 'שלום everyone, the meeting starts at 10:00 tomorrow.', 'rtl'],
+  ['Latin with a Hebrew word mid-sentence', 'Please check that the כותרת appears correctly.', 'rtl'],
   ['No Hebrew at all', 'No Hebrew characters at all in this line.', undefined],
 
   // Technical Hebrew prose — the case that broke the letter-counting rule.
@@ -138,13 +144,17 @@ const cases = [
   ['Hebrew table row naming a package', '| שם החבילה | dsh-hebrew-rtl |', 'rtl'],
   ['Hebrew sentence quoting a command', 'הרצתי npm test על הריפו וקיבלתי 15/15 — הכול עובר.', 'rtl'],
 
-  // The mirror image: dropping code tokens must not drag real English prose
-  // to RTL merely because it names two Hebrew fields.
+  // Any Hebrew at all makes the line RTL — including English prose that
+  // merely names two Hebrew fields. That is the accepted cost of the rule.
   [
     'English prose naming Hebrew fields',
     'The build failed because the כותרת field and the תיאור field were both empty on submit.',
-    'ltr',
+    'rtl',
   ],
+  // The case that motivated the rule: a line opening with a Latin word, with
+  // more Latin than Hebrew, that must still read RTL.
+  ['Mixed line opening with a Latin word', '1. Rollout: מוסיפים minPodsPerReplicaSet: 2', 'rtl'],
+  ['Mixed line with Latin majority', 'canonical-revision=canary. minAvailable: 50%, unhealthyPodEvictionPolicy: AlwaysAllow בוחר רק pods עם', 'rtl'],
   // Every Hebrew character sits inside a stripped token, so no Hebrew prose
   // remains to speak for the block: leave it to the plaintext heuristic.
   ['English prose with paths and commands', 'The plugin lives in ~/workDir/dsh-plugins and exports apply.', undefined],
@@ -294,16 +304,16 @@ check('plaintext CSS excludes KaTeX subtrees', source.includes(':not(.katex):not
 }
 
 {
-  // Dominance stays symmetric: an English answer quoting Hebrew field names
-  // must stay LTR. A "3+ Hebrew words means Hebrew" threshold would score 3
-  // against 17 here and flip it — the "any Hebrew forces RTL" bug with a
-  // number attached.
+  // An English answer quoting Hebrew field names: the line with Hebrew is
+  // RTL, but the MESSAGE stays English (dominance), so its Latin heading and
+  // its Latin paragraphs keep their own direction.
   const p1 = block('The form has three broken fields.', 'P')
   const p2 = block('The כותרת field, the תיאור field and the שם field all reject valid input.', 'P')
   const heading = block('Broken fields', 'H3')
   scanOneMessage([p1, p2, heading])
-  check('an English message quoting Hebrew names stays LTR', p2.applied.direction, 'ltr')
-  check('its heading is not dragged to RTL', heading.applied.direction, 'ltr')
+  check('a line quoting Hebrew names is RTL (any Hebrew)', p2.applied.direction, 'rtl')
+  check('its all-English sibling paragraph is left alone', p1.applied.direction, undefined)
+  check('an all-Latin heading of an English message is not dragged to RTL', heading.applied.direction, undefined)
 }
 
 // --- A tie resolves to RTL --------------------------------------------------
