@@ -75,11 +75,13 @@ dsh plugin --profile web add github:kfirsch/dsh-hebrew-rtl
 
 לאחר מכן יש להפעיל מחדש את `dsh web` ולרענן את הטאב ריענון קשה.
 
-לנעילה על commit מדויק (מומלץ — כך דחיפה עתידית לא תוכל לשנות בשקט את מה שרץ אצלך):
+לנעילה על גרסה (מומלץ — כך דחיפה עתידית לא תוכל לשנות בשקט את מה שרץ אצלך):
 
 ```sh
-dsh plugin --profile web add github:kfirsch/dsh-hebrew-rtl#<commit-sha>
+dsh plugin --profile web add github:kfirsch/dsh-hebrew-rtl#v0.2.0
 ```
+
+או על commit מדויק: `github:kfirsch/dsh-hebrew-rtl#<commit-sha>`. הגרסאות והשינויים בכל אחת מופיעים בדף ה-[Releases](https://github.com/kfirsch/dsh-hebrew-rtl/releases).
 
 החבילה כוללת JavaScript פשוט וכתוב ביד תחת `lib/`, **ללא שלב build**, ולכן התקנה מ-GitHub לא דורשת אישור `allowBuilds`.
 
