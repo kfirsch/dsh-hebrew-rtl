@@ -75,11 +75,13 @@ dsh plugin --profile web add github:kfirsch/dsh-hebrew-rtl
 
 Then restart `dsh web` and hard-refresh the browser tab.
 
-To pin an exact commit (recommended — a later push then cannot silently change what runs):
+To pin a release (recommended — a later push then cannot silently change what runs):
 
 ```sh
-dsh plugin --profile web add github:kfirsch/dsh-hebrew-rtl#<commit-sha>
+dsh plugin --profile web add github:kfirsch/dsh-hebrew-rtl#v0.2.0
 ```
+
+or an exact commit: `github:kfirsch/dsh-hebrew-rtl#<commit-sha>`. Releases and their changes are listed on the [Releases](https://github.com/kfirsch/dsh-hebrew-rtl/releases) page.
 
 The package ships plain hand-written JavaScript in `lib/` with **no build step**, so installing from GitHub needs no `allowBuilds` approval.
 

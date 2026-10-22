@@ -1,6 +1,6 @@
 {
   "name": "dsh-hebrew-rtl",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Correct Hebrew RTL rendering for the DeepSeek Harness web GUI: any line with Hebrew reads right-to-left, bidi-safe input fields, and RTL-aware Cmd+Left/Right line navigation.",
   "type": "module",
   "license": "MIT",
