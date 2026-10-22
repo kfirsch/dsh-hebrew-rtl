@@ -55,15 +55,17 @@ So the direction is decided once per composite, from its whole text, and every p
 
 Blocks are re-evaluated through a `MutationObserver` as text streams in, coalesced with `requestAnimationFrame` so streaming does not trigger a scan per character.
 
-### Bidi-safe input fields
+### Input fields: any Hebrew, RTL
 
-The composer and the `ask_user_question` custom-answer field are each a **two-layer stack**: a visible or measuring mirror layer plus a real `<textarea>` sharing one grid cell. Both layers must carry *identical* bidi metrics, or their computed heights and wrapping diverge and the field mis-sizes or the caret drifts away from the glyphs.
+The same rule as the chat, applied to what you type:
 
-Both layers therefore receive `unicode-bidi: plaintext` together — never the textarea alone — so each line's direction follows what is actually typed into it.
+- **The composer** (a Lexical rich-text editor since dsh `0.1.7`) renders each line as `<p dir="auto">`, and `dir="auto"` is first-strong — `Rollout: מוסיפים` came out LTR. Each composer line holding Hebrew is forced RTL. Only the line's inline style is touched, never its content, so the editor's own reconciliation is unaffected.
+- **Text inputs and textareas** — the session rename dialog, the `ask_user_question` custom answer, search boxes — are forced RTL as a whole when they hold any Hebrew, and released when the Hebrew is gone. The rename dialog opens prefilled and focused, so it is checked on focus as well as on typing.
+- The custom-answer field is a **two-layer stack**: a hidden height mirror plus the real `<textarea>`, sharing one grid cell. Both layers are always styled together — never the textarea alone — or their wrapped heights diverge and the field mis-sizes.
 
 ### RTL-aware line navigation
 
-A capture-phase `keydown` listener intercepts `Cmd`+`←`/`→` **only when the caret's current line is RTL**, and swaps them so each arrow points where the caret visually goes. Lines that are not RTL are left completely untouched. Shift-extension and selection direction are preserved.
+A capture-phase `keydown` listener intercepts `Cmd`+`←`/`→` in text inputs and textareas **only when the caret's current line is RTL** (holds any Hebrew, or sits in a field laid out RTL), and swaps them so each arrow points where the caret visually goes. Lines that are not RTL are left completely untouched. Shift-extension and selection direction are preserved.
 
 ## Install
 
@@ -96,8 +98,8 @@ A pull request adding another script is welcome **from someone who reads it** an
 ## Compatibility
 
 - **Surface:** the `web` profile (`dsh web`). No host service, no configuration, no network access.
-- **What it never touches:** `contenteditable` regions and code blocks — code stays LTR regardless of its content.
-- Tested against dsh `0.1.1-rc.2`.
+- **What it never touches:** code blocks — code stays LTR regardless of its content — and contenteditable regions other than the composer.
+- Tested against dsh `0.1.7-alpha.1`.
 
 ## License
 
@@ -117,9 +119,10 @@ package passes with **no errors**.
 Run the checks yourself:
 
 ```sh
-npm test              # both suites below
+npm test              # all three suites below
 npm run test:unit     # direction verdicts and the caret swap, against DOM stubs
 npm run test:browser  # real layout in headless Chrome: GenUI steps, question
-                      # cards, the user bubble, markdown blocks (needs Chrome;
-                      # skipped if none is found)
+                      # cards, the user bubble, markdown blocks
+npm run test:fields   # input fields in headless Chrome: composer, rename,
+                      # custom answer (browser suites skip if no Chrome)
 ```
